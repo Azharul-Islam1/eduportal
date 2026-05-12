@@ -122,9 +122,9 @@ export default async function TeacherDashboard() {
                 <div key={e.id} className="px-5 py-3 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-800">{e.name}</p>
-                    <p className="text-xs text-gray-500">{e.class.name} · {e.subject.name}</p>
+                    <p className="text-xs text-gray-500">{e.class?.name ?? "—"} · {e.subject?.name ?? "—"}</p>
                   </div>
-                  <span className="text-xs text-blue-600 font-medium">{formatDate(e.date)}</span>
+                  <span className="text-xs text-blue-600 font-medium">{e.date ? formatDate(e.date) : "—"}</span>
                 </div>
               ))}
             </div>

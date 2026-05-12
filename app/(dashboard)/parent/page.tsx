@@ -70,7 +70,7 @@ export default async function ParentDashboard() {
                       <div className="space-y-2">
                         {child.results.map((r) => (
                           <div key={r.id} className="flex items-center justify-between text-sm">
-                            <span className="text-gray-700">{r.exam.subject.name}</span>
+                            <span className="text-gray-700">{r.exam.subject?.name ?? r.exam.name}</span>
                             <span className="font-medium text-gray-800">{r.marksObtained}/{r.exam.totalMarks} <span className="text-gray-400">({r.grade})</span></span>
                           </div>
                         ))}

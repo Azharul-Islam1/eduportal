@@ -1,5 +1,17 @@
 import Link from "next/link";
-import { BookOpen, Users, GraduationCap, BarChart3, Calendar, Library } from "lucide-react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { BookOpen, Users, GraduationCap, BarChart3, Calendar, Library, LayoutDashboard } from "lucide-react";
+
+const ROLE_HOME: Record<string, string> = {
+  SUPER_ADMIN: "/superadmin",
+  SCHOOL_ADMIN: "/admin",
+  ADMIN: "/admin",
+  TEACHER: "/teacher",
+  STAFF: "/admin",
+  STUDENT: "/student",
+  PARENT: "/parent",
+};
 
 const features = [
   { icon: Users, title: "Student & Staff Management", desc: "Manage student enrollment, teacher profiles, attendance, and performance tracking." },
@@ -10,7 +22,10 @@ const features = [
   { icon: BookOpen, title: "Role-Based Portals", desc: "Separate dashboards for Admin, Teacher, Student, and Parent roles." },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getServerSession(authOptions);
+  const dashboardHref = session?.user ? (ROLE_HOME[session.user.role ?? ""] ?? "/admin") : null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-900 text-white">
       {/* Header */}
@@ -19,9 +34,16 @@ export default function HomePage() {
           <GraduationCap className="w-8 h-8 text-blue-300" />
           <span className="text-xl font-bold tracking-tight">EduPortal</span>
         </div>
-        <Link href="/login" className="btn-primary">
-          Sign In
-        </Link>
+        {dashboardHref ? (
+          <Link href={dashboardHref} className="btn-primary flex items-center gap-2">
+            <LayoutDashboard className="w-4 h-4" />
+            Go to Dashboard
+          </Link>
+        ) : (
+          <Link href="/login" className="btn-primary">
+            Sign In
+          </Link>
+        )}
       </header>
 
       {/* Hero */}
@@ -34,9 +56,16 @@ export default function HomePage() {
           A unified platform covering every need of your educational institution — from admissions to exams, fees to library, all in one place.
         </p>
         <div className="flex justify-center gap-4">
-          <Link href="/login" className="btn-primary text-base px-6 py-3">
-            Get Started
-          </Link>
+          {dashboardHref ? (
+            <Link href={dashboardHref} className="btn-primary text-base px-6 py-3 flex items-center gap-2">
+              <LayoutDashboard className="w-5 h-5" />
+              Go to Dashboard
+            </Link>
+          ) : (
+            <Link href="/login" className="btn-primary text-base px-6 py-3">
+              Get Started
+            </Link>
+          )}
           <a href="#features" className="btn-secondary text-base px-6 py-3 bg-white/10 border-white/20 text-white hover:bg-white/20">
             Learn More
           </a>
@@ -60,7 +89,7 @@ export default function HomePage() {
       </section>
 
       <footer className="text-center py-6 text-blue-300/50 text-sm">
-        EduPortal. Built with Next.js, Prisma & TailwindCSS.
+        EduPortal. Built with Next.js, Prisma &amp; TailwindCSS.
       </footer>
     </div>
   );

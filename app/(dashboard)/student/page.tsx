@@ -141,8 +141,8 @@ export default async function StudentDashboard() {
                 return (
                   <div key={r.id} className="px-5 py-3 flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-800">{r.exam.subject.name}</p>
-                      <p className="text-xs text-gray-500">{r.exam.name} · {formatDate(r.exam.date)}</p>
+                      <p className="text-sm font-medium text-gray-800">{r.exam.subject?.name ?? r.exam.name}</p>
+                      <p className="text-xs text-gray-500">{r.exam.name}{r.exam.date ? ` · ${formatDate(r.exam.date)}` : ""}</p>
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-gray-800">{r.marksObtained}/{r.exam.totalMarks}</p>
@@ -184,7 +184,7 @@ export default async function StudentDashboard() {
               <div key={payment.id} className="px-5 py-3 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-800">{payment.feeStructure.feeType}</p>
-                  <p className="text-xs text-gray-500">{payment.feeStructure.class.name} · {formatDate(payment.paidDate)}</p>
+                  <p className="text-xs text-gray-500">{payment.feeStructure.class?.name} · {formatDate(payment.paidDate)}</p>
                 </div>
                 <span className={`badge text-xs ${payment.status === "PAID" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                   {formatCurrency(payment.paidAmount)}

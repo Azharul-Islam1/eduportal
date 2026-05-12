@@ -1,128 +1,235 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { GraduationCap, LogOut, ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { navConfig, type NavItem } from "@/lib/nav-config";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
-  LayoutDashboard, Users, GraduationCap, BookOpen, Calendar,
-  DollarSign, Library, Bell, LogOut, ChevronRight, School,
-  ClipboardList, FileText, BookMarked, UserCheck,
-} from "lucide-react";
-
-type NavItem = { label: string; href: string; icon: React.ElementType };
-
-const adminNav: NavItem[] = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Students", href: "/admin/students", icon: GraduationCap },
-  { label: "Teachers", href: "/admin/teachers", icon: Users },
-  { label: "Classes", href: "/admin/classes", icon: School },
-  { label: "Subjects", href: "/admin/subjects", icon: BookOpen },
-  { label: "Exams", href: "/admin/exams", icon: ClipboardList },
-  { label: "Attendance", href: "/admin/attendance", icon: UserCheck },
-  { label: "Finance", href: "/admin/finance", icon: DollarSign },
-  { label: "Library", href: "/admin/library", icon: Library },
-  { label: "Notices", href: "/admin/notices", icon: Bell },
-  { label: "Events", href: "/admin/events", icon: Calendar },
-];
-
-const teacherNav: NavItem[] = [
-  { label: "Dashboard", href: "/teacher", icon: LayoutDashboard },
-  { label: "Attendance", href: "/teacher/attendance", icon: UserCheck },
-  { label: "Assignments", href: "/teacher/assignments", icon: FileText },
-  { label: "Exams", href: "/teacher/exams", icon: ClipboardList },
-];
-
-const studentNav: NavItem[] = [
-  { label: "Dashboard", href: "/student", icon: LayoutDashboard },
-  { label: "Grades", href: "/student/grades", icon: BookOpen },
-  { label: "Timetable", href: "/student/timetable", icon: Calendar },
-  { label: "Fees", href: "/student/fees", icon: DollarSign },
-  { label: "Library", href: "/student/library", icon: Library },
-];
-
-const parentNav: NavItem[] = [
-  { label: "Dashboard", href: "/parent", icon: LayoutDashboard },
-];
-
-const navMap: Record<string, NavItem[]> = {
-  admin: adminNav,
-  teacher: teacherNav,
-  student: studentNav,
-  parent: parentNav,
-};
-
-const roleColors: Record<string, string> = {
-  admin: "bg-blue-600",
-  teacher: "bg-green-600",
-  student: "bg-purple-600",
-  parent: "bg-orange-500",
-};
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SidebarProps {
   role: string;
   userName: string;
+  schoolName?: string;
 }
 
-export default function Sidebar({ role, userName }: SidebarProps) {
+function NavLink({
+  item,
+  isActive,
+  collapsed,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  collapsed: boolean;
+}) {
+  const link = (
+    <Link
+      href={item.href}
+      className={cn(
+        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        isActive
+          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        collapsed && "justify-center px-2"
+      )}
+    >
+      <item.icon
+        className={cn(
+          "h-4 w-4 shrink-0",
+          isActive ? "text-sidebar-primary-foreground" : "text-sidebar-foreground/50 group-hover:text-sidebar-accent-foreground"
+        )}
+      />
+      {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+    </Link>
+  );
+
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right">{item.label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return link;
+}
+
+function SidebarContent({
+  role,
+  userName,
+  schoolName,
+  collapsed,
+}: SidebarProps & { collapsed: boolean }) {
   const pathname = usePathname();
-  const navItems = navMap[role] ?? adminNav;
-  const roleColor = roleColors[role] ?? "bg-blue-600";
+  const groups = navConfig[role.toUpperCase()] ?? navConfig.SCHOOL_ADMIN;
+
+  const isActive = (href: string) => {
+    const base = `/${role.toLowerCase()}`;
+    return pathname === href || (href !== base && pathname.startsWith(href + "/"));
+  };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 w-64 flex flex-col bg-white border-r border-gray-200 shadow-sm">
+    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       {/* Logo */}
-      <div className={cn("flex items-center gap-2 px-5 py-4 border-b border-gray-200", roleColor)}>
-        <GraduationCap className="w-7 h-7 text-white" />
-        <span className="font-bold text-lg text-white">EduPortal</span>
-      </div>
-
-      {/* User chip */}
-      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-        <div className="flex items-center gap-3">
-          <div className={cn("w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0", roleColor)}>
-            {userName.charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-800 truncate">{userName}</p>
-            <p className="text-xs text-gray-500 capitalize">{role}</p>
-          </div>
+      <div className={cn("flex h-14 items-center border-b border-sidebar-border px-3", collapsed ? "justify-center" : "gap-2 px-4")}>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 ring-1 ring-blue-400/20">
+          <GraduationCap className="h-4 w-4 text-blue-300" />
         </div>
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-white">EduPortal</p>
+            {schoolName && (
+              <p className="truncate text-xs text-sidebar-foreground/50">{schoolName}</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== `/${role}` && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors group",
-                isActive
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              )}
-            >
-              <item.icon className={cn("w-5 h-5 shrink-0", isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600")} />
-              <span className="flex-1">{item.label}</span>
-              {isActive && <ChevronRight className="w-4 h-4 text-blue-400" />}
-            </Link>
-          );
-        })}
-      </nav>
+      <ScrollArea className="flex-1 py-3">
+        <TooltipProvider delayDuration={0}>
+          <nav className={cn("space-y-4", collapsed ? "px-2" : "px-3")}>
+            {groups.map((group) => (
+              <div key={group.title}>
+                {!collapsed && (
+                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                    {group.title}
+                  </p>
+                )}
+                <div className="space-y-0.5">
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.href}
+                      item={item}
+                      isActive={isActive(item.href)}
+                      collapsed={collapsed}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </nav>
+        </TooltipProvider>
+      </ScrollArea>
 
-      {/* Sign out */}
-      <div className="border-t border-gray-200 p-3">
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
-        >
-          <LogOut className="w-5 h-5" />
-          Sign Out
-        </button>
+      <Separator className="bg-sidebar-border" />
+
+      {/* User + sign out */}
+      <div className={cn("flex items-center p-3 gap-2", collapsed ? "justify-center flex-col" : "")}>
+        {!collapsed && (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold text-blue-300 ring-1 ring-blue-400/20">
+              {userName.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-white">{userName}</p>
+              <p className="truncate text-[10px] capitalize text-sidebar-foreground/50">
+                {role.toLowerCase().replace("_", " ")}
+              </p>
+            </div>
+          </div>
+        )}
+        <TooltipProvider delayDuration={0}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-sidebar-foreground/50 hover:bg-red-500/10 hover:text-red-400"
+                onClick={() => signOut({ callbackUrl: "/login" })}
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side={collapsed ? "right" : "top"}>Sign out</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
-    </aside>
+    </div>
+  );
+}
+
+export default function Sidebar({ role, userName, schoolName }: SidebarProps) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("sidebar-collapsed");
+    if (stored !== null) setCollapsed(stored === "true");
+  }, []);
+
+  const toggleCollapse = () => {
+    setCollapsed((prev) => {
+      localStorage.setItem("sidebar-collapsed", String(!prev));
+      return !prev;
+    });
+  };
+
+  return (
+    <>
+      {/* Mobile trigger (visible < lg) */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed left-4 top-3 z-50 lg:hidden"
+        onClick={() => setMobileOpen(true)}
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
+
+      {/* Mobile sheet */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="w-64 p-0">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SidebarContent
+            role={role}
+            userName={userName}
+            schoolName={schoolName}
+            collapsed={false}
+          />
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop sidebar */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 hidden flex-col transition-all duration-300 lg:flex",
+          collapsed ? "w-14" : "w-60"
+        )}
+      >
+        <SidebarContent
+          role={role}
+          userName={userName}
+          schoolName={schoolName}
+          collapsed={collapsed}
+        />
+
+        {/* Collapse toggle */}
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          className="absolute -right-3 top-16 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/50 hover:text-sidebar-foreground shadow-sm transition-colors"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+        </button>
+      </aside>
+    </>
   );
 }

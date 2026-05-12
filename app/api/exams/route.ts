@@ -7,13 +7,27 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const classId = searchParams.get("classId") ?? undefined;
+  const { searchParams } = req.nextUrl;
+  const academicYear = searchParams.get("academicYear") ?? undefined;
 
   const exams = await db.exam.findMany({
-    where: classId ? { classId } : {},
-    include: { class: true, subject: true, teacher: { include: { user: { select: { name: true } } } }, _count: { select: { results: true } } },
-    orderBy: { date: "desc" },
+    where: {
+      AND: [
+        { school: { users: { some: { id: session.user.id } } } },
+        ...(academicYear ? [{ academicYear }] : []),
+      ],
+    },
+    include: {
+      papers: {
+        include: {
+          subject: { select: { name: true } },
+          class: { select: { name: true, section: true } },
+          _count: { select: { marks: true } },
+        },
+      },
+      _count: { select: { papers: true } },
+    },
+    orderBy: { createdAt: "desc" },
   });
 
   return NextResponse.json(exams);
@@ -21,22 +35,27 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || (session.user.role !== "TEACHER" && session.user.role !== "ADMIN")) {
+  if (!session || !["ADMIN", "SCHOOL_ADMIN"].includes(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
-  const { name, type, classId, subjectId, teacherId, date, totalMarks, passingMarks } = body;
+  const school = await db.school.findFirst({
+    where: { users: { some: { id: session.user.id } } },
+  });
+  if (!school) return NextResponse.json({ error: "School not found" }, { status: 400 });
 
-  let resolvedTeacherId = teacherId;
-  if (!resolvedTeacherId && session.user.role === "TEACHER") {
-    const teacher = await db.teacher.findUnique({ where: { userId: session.user.id } });
-    resolvedTeacherId = teacher?.id;
-  }
+  const { name, academicYear, startDate, endDate, weightage } = await req.json();
+  if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
   const exam = await db.exam.create({
-    data: { name, type, classId, subjectId, teacherId: resolvedTeacherId, date: new Date(date), totalMarks, passingMarks },
-    include: { class: true, subject: true },
+    data: {
+      name,
+      academicYear: academicYear ?? "2025-2026",
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      weightage: weightage ?? 100,
+      schoolId: school.id,
+    },
   });
 
   return NextResponse.json(exam, { status: 201 });

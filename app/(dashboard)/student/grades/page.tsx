@@ -39,10 +39,10 @@ export default async function StudentGradesPage() {
                 const pct = ((r.marksObtained / r.exam.totalMarks) * 100).toFixed(1);
                 return (
                   <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-800">{r.exam.subject.name}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800">{r.exam.subject?.name ?? "—"}</td>
                     <td className="px-4 py-3 text-gray-600">{r.exam.name}</td>
                     <td className="px-4 py-3"><span className="badge bg-gray-100 text-gray-600">{r.exam.type}</span></td>
-                    <td className="px-4 py-3 text-gray-600">{formatDate(r.exam.date)}</td>
+                    <td className="px-4 py-3 text-gray-600">{r.exam.date ? formatDate(r.exam.date) : "—"}</td>
                     <td className="px-4 py-3 font-semibold text-gray-800">{r.marksObtained}/{r.exam.totalMarks}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">

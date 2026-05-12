@@ -11,18 +11,26 @@ export async function GET() {
     include: { teacher: { include: { user: { select: { name: true } } } } },
     orderBy: { name: "asc" },
   });
-
   return NextResponse.json(subjects);
 }
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "ADMIN") {
+  if (!session || !["SCHOOL_ADMIN", "ADMIN"].includes(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { name, code, teacherId } = await req.json();
+  const { name, code, teacherId, type, isElective } = await req.json();
+  if (!name || !code) return NextResponse.json({ error: "name and code required" }, { status: 400 });
 
-  const subject = await db.subject.create({ data: { name, code, teacherId } });
+  const subject = await db.subject.create({
+    data: {
+      name,
+      code,
+      teacherId: teacherId || null,
+      type: type ?? "THEORY",
+      isElective: isElective ?? false,
+    },
+  });
   return NextResponse.json(subject, { status: 201 });
 }

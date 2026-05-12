@@ -7,14 +7,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const role = session.user.role.toLowerCase();
+  const { name, role } = session.user;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar role={role} userName={session.user.name} />
-      <main className="ml-64 min-h-screen">
-        {children}
-      </main>
+    <div className="min-h-screen bg-background">
+      <Sidebar role={role} userName={name} />
+      <div className="flex flex-col lg:pl-60 transition-all duration-300">
+        <main className="flex-1 p-4 lg:p-6">{children}</main>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Process -Name node -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process | Where-Object { $_.Name -match \"node|next\" } | Select-Object Id, Name, Path)",
+      "PowerShell(Select-String -Path \"f:\\\\eduPortal\\\\node_modules\\\\.prisma\\\\client\\\\index.d.ts\" -Pattern \"plan\\\\b\" -SimpleMatch | Select-Object -First 5 | ForEach-Object { $_.Line })",
+      "PowerShell(Select-String -Path \"f:\\\\eduPortal\\\\node_modules\\\\@prisma\\\\client\\\\index.d.ts\" -Pattern \"Plan\" -SimpleMatch | Select-Object -First 5 | ForEach-Object { $_.Line })"
+    ]
+  }
+}

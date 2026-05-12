@@ -31,9 +31,9 @@ export default async function TeacherExamsPage() {
                 <tr key={e.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-800">{e.name}</td>
                   <td className="px-4 py-3"><span className={`badge ${typeColors[e.type] ?? "bg-gray-100"}`}>{e.type}</span></td>
-                  <td className="px-4 py-3 text-gray-600">{e.class.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{e.subject.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{formatDate(e.date)}</td>
+                  <td className="px-4 py-3 text-gray-600">{e.class?.name ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray-600">{e.subject?.name ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray-600">{e.date ? formatDate(e.date) : "—"}</td>
                   <td className="px-4 py-3 text-gray-600">{e.totalMarks}</td>
                   <td className="px-4 py-3"><span className="badge bg-gray-100 text-gray-600">{e._count.results} entered</span></td>
                 </tr>

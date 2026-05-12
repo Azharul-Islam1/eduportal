@@ -1,189 +1,290 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Header from "@/components/dashboard/Header";
-import { Plus, Search, Pencil, Trash2, Loader2, X } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Search, Plus, Upload, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 interface Student {
   id: string;
   studentId: string;
+  classId: string;
   rollNumber: string | null;
   gender: string | null;
+  bloodGroup: string | null;
   user: { name: string; email: string; phone: string | null; isActive: boolean };
   class: { id: string; name: string; section: string };
+  guardians: Array<{
+    id: string;
+    isPrimary: boolean;
+    guardian: { id: string; name: string; relation: string; phone: string };
+  }>;
 }
 
-interface ClassOption { id: string; name: string; section: string }
+interface ClassOption {
+  id: string;
+  name: string;
+  section: string;
+}
+
+const PAGE_SIZE = 20;
 
 export default function StudentsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [classFilter, setClassFilter] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", classId: "", rollNumber: "", gender: "", password: "" });
+
+  const search = searchParams.get("search") ?? "";
+  const classId = searchParams.get("classId") ?? "";
+  const status = searchParams.get("status") ?? "";
+  const page = Number(searchParams.get("page") ?? "1");
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function updateParam(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    params.delete("page");
+    router.push(`?${params.toString()}`);
+  }
+
+  function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => updateParam("search", val), 300);
+  }
+
+  function setPage(p: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(p));
+    router.push(`?${params.toString()}`);
+  }
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ search, ...(classFilter ? { classId: classFilter } : {}) });
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (classId) params.set("classId", classId);
+    if (status) params.set("status", status);
+    params.set("page", String(page));
+    params.set("limit", String(PAGE_SIZE));
     const res = await fetch(`/api/students?${params}`);
     const data = await res.json();
     setStudents(data.students ?? []);
     setTotal(data.total ?? 0);
     setLoading(false);
-  }, [search, classFilter]);
+  }, [search, classId, status, page]);
 
   useEffect(() => {
-    fetch("/api/classes").then((r) => r.json()).then(setClasses);
+    fetch("/api/classes")
+      .then((r) => r.json())
+      .then((data) => setClasses(Array.isArray(data) ? data : data.classes ?? []));
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(fetchStudents, 300);
-    return () => clearTimeout(t);
+    fetchStudents();
   }, [fetchStudents]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    const payload = { ...form, password: form.password?.trim() || undefined };
-    const res = await fetch("/api/students", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    setSaving(false);
-    if (res.ok) { setShowModal(false); setForm({ name: "", email: "", phone: "", classId: "", rollNumber: "", gender: "", password: "" }); fetchStudents(); }
-  }
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  async function handleDeactivate(id: string) {
-    if (!confirm("Deactivate this student?")) return;
-    await fetch(`/api/students/${id}`, { method: "DELETE" });
-    fetchStudents();
-  }
+  const primaryGuardian = (s: Student) =>
+    s.guardians?.find((g) => g.isPrimary)?.guardian ?? s.guardians?.[0]?.guardian;
 
   return (
-    <div>
-      <Header title="Students" />
-      <div className="p-6">
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-3 mb-5">
-          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 flex-1 min-w-48">
-            <Search className="w-4 h-4 text-gray-400 shrink-0" />
-            <input placeholder="Search by name..." value={search} onChange={(e) => setSearch(e.target.value)} className="text-sm outline-none flex-1 min-w-0" />
-          </div>
-          <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="input w-40">
-            <option value="">All Classes</option>
-            {classes.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
-          </select>
-          <button onClick={() => setShowModal(true)} className="btn-primary shrink-0">
-            <Plus className="w-4 h-4" /> Add Student
-          </button>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Students</h1>
+          <p className="text-sm text-muted-foreground">{total} students enrolled</p>
         </div>
-
-        {/* Table */}
-        <div className="card overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-600">{total} students total</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
-                <tr>
-                  {["Student ID", "Name", "Class", "Roll No", "Gender", "Email", "Status", "Actions"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {loading && (
-                  <tr><td colSpan={8} className="py-8 text-center text-gray-500"><Loader2 className="w-5 h-5 animate-spin inline" /></td></tr>
-                )}
-                {!loading && students.length === 0 && (
-                  <tr><td colSpan={8} className="py-8 text-center text-gray-400">No students found.</td></tr>
-                )}
-                {students.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 font-mono text-xs text-blue-600">{s.studentId}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800">{s.user.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{s.class.name} {s.class.section}</td>
-                    <td className="px-4 py-3 text-gray-600">{s.rollNumber ?? "—"}</td>
-                    <td className="px-4 py-3 text-gray-600">{s.gender ?? "—"}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{s.user.email}</td>
-                    <td className="px-4 py-3">
-                      <span className={`badge ${s.user.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
-                        {s.user.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleDeactivate(s.id)} className="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/admissions/import">
+              <Upload className="mr-2 h-4 w-4" />
+              Import CSV
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/admissions/new">
+              <Plus className="mr-2 h-4 w-4" />
+              New Admission
+            </Link>
+          </Button>
         </div>
       </div>
 
-      {/* Add Student Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="card w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Add New Student</h2>
-              <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-gray-100"><X className="w-5 h-5" /></button>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-48">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or ID..."
+                defaultValue={search}
+                onChange={handleSearchChange}
+                className="pl-9"
+              />
             </div>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Full Name *</label>
-                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input" required />
-                </div>
-                <div>
-                  <label className="label">Email *</label>
-                  <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input" required />
-                </div>
-                <div>
-                  <label className="label">Password</label>
-                  <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="input" placeholder="Leave blank for default password" />
-                  <p className="text-xs text-gray-500 mt-1">Leave empty to assign the default password <strong>password123</strong>.</p>
-                </div>
-                <div>
-                  <label className="label">Phone</label>
-                  <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input" />
-                </div>
-                <div>
-                  <label className="label">Class *</label>
-                  <select value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })} className="input" required>
-                    <option value="">Select class</option>
-                    {classes.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.section})</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Roll Number</label>
-                  <input value={form.rollNumber} onChange={(e) => setForm({ ...form, rollNumber: e.target.value })} className="input" />
-                </div>
-                <div>
-                  <label className="label">Gender</label>
-                  <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input">
-                    <option value="">Select</option>
-                    <option>Male</option><option>Female</option><option>Other</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancel</button>
-                <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Student"}
-                </button>
-              </div>
-            </form>
+            <Select value={classId || "__all__"} onValueChange={(v) => updateParam("classId", v === "__all__" ? "" : v)}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="All Classes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Classes</SelectItem>
+                {classes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} {c.section}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={status || "__all__"} onValueChange={(v) => updateParam("status", v === "__all__" ? "" : v)}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-      )}
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">#</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Class</TableHead>
+                <TableHead>Guardian</TableHead>
+                <TableHead>Blood Group</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-20">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-12 text-center">
+                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && students.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                    No students found.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading &&
+                students.map((s, i) => {
+                  const guardian = primaryGuardian(s);
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {(page - 1) * PAGE_SIZE + i + 1}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{s.user.name}</p>
+                          <p className="text-xs text-muted-foreground">{s.user.email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">
+                          {s.class.name} {s.class.section}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {guardian ? (
+                          <div>
+                            <p className="text-sm">{guardian.name}</p>
+                            <p className="text-xs text-muted-foreground">{guardian.phone}</p>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {s.bloodGroup ? (
+                          <Badge variant="outline">{s.bloodGroup}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={s.user.isActive ? "success" : "destructive"}>
+                          {s.user.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/admin/students/${s.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+            </TableBody>
+          </Table>
+          {!loading && total > PAGE_SIZE && (
+            <div className="flex items-center justify-between border-t px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
