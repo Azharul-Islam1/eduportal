@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/superadmin-guard";
 import { db } from "@/lib/db";
 
-export async function GET() {
-  const { error } = await requireSuperAdmin();
+export async function GET(req: NextRequest) {
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   const [totalSchools, activeSchools, suspendedSchools, trialSchools, recentOnboardings] =

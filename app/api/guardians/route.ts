@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -14,15 +13,15 @@ const createSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") ?? "";
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
   const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "20"));
 
-  const schoolId = session.user.schoolId;
+  const schoolId = sessionUser.schoolId;
   if (!schoolId) return NextResponse.json({ guardians: [], total: 0 });
 
   const where = {
@@ -62,8 +61,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user.schoolId) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser || !sessionUser.schoolId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -76,7 +75,7 @@ export async function POST(req: NextRequest) {
     data: {
       ...rest,
       email: email || undefined,
-      schoolId: session.user.schoolId,
+      schoolId: sessionUser.schoolId,
     },
   });
 

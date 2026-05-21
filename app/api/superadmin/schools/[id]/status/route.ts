@@ -8,7 +8,7 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireSuperAdmin();
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   const { id } = await params;

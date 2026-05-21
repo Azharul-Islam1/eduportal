@@ -15,7 +15,7 @@
  * the /backups directory (add to .gitignore, set appropriate file perms).
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/superadmin-guard";
 import { spawn } from "child_process";
 import { createWriteStream, readdirSync, statSync, unlinkSync } from "fs";
@@ -125,8 +125,8 @@ function runBackup(): Promise<{ fileName: string; size: number; sizeLabel: strin
   });
 }
 
-export async function GET() {
-  const { error } = await requireSuperAdmin();
+export async function GET(req: NextRequest) {
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   await mkdir(BACKUP_DIR, { recursive: true }).catch(() => {});
@@ -134,8 +134,8 @@ export async function GET() {
   return NextResponse.json({ backups, backupDir: BACKUP_DIR, maxBackups: MAX_BACKUPS });
 }
 
-export async function POST() {
-  const { error } = await requireSuperAdmin();
+export async function POST(req: NextRequest) {
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   await mkdir(BACKUP_DIR, { recursive: true });
@@ -150,7 +150,7 @@ export async function POST() {
 }
 
 export async function DELETE(req: Request) {
-  const { error } = await requireSuperAdmin();
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   const { searchParams } = new URL(req.url);

@@ -32,7 +32,7 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireSuperAdmin();
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   const { school: schoolData, admin } = schema.parse(await req.json());

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 
 function getGrade(pct: number) {
@@ -14,8 +13,8 @@ function getGrade(pct: number) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = req.nextUrl;
   const examId = searchParams.get("examId");
@@ -25,7 +24,7 @@ export async function GET(req: NextRequest) {
   if (!examId) {
     // Return list of exams for the school
     const exams = await db.exam.findMany({
-      where: { school: { users: { some: { id: session.user.id } } } },
+      where: { school: { users: { some: { id: sessionUser.id } } } },
       select: { id: true, name: true, academicYear: true, status: true },
       orderBy: { createdAt: "desc" },
     });

@@ -1,11 +1,10 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(req: NextRequest) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const [students, teachers, classes, notices, events, pendingFees, issuedBooks] = await Promise.all([
     db.student.count(),
@@ -17,5 +16,14 @@ export async function GET() {
     db.bookIssue.count({ where: { status: "ISSUED" } }),
   ]);
 
-  return NextResponse.json({ students, teachers, classes, notices, events, pendingFees, issuedBooks });
+  return NextResponse.json({
+    students, teachers, classes, notices, events, issuedBooks,
+    totalStudents: students,
+    totalTeachers: teachers,
+    totalClasses: classes,
+    pendingFees,
+    presentToday: null,
+    absentToday: null,
+    totalFeeCollected: null,
+  });
 }

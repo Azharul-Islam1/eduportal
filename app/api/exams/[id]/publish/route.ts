@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session || !["ADMIN", "SCHOOL_ADMIN"].includes(session.user.role)) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser || !["ADMIN", "SCHOOL_ADMIN"].includes(sessionUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

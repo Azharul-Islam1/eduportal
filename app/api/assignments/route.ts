@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const classId = searchParams.get("classId") ?? undefined;
@@ -25,8 +24,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !["TEACHER", "SCHOOL_ADMIN", "ADMIN", "STAFF"].includes(session.user.role)) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser || !["TEACHER", "SCHOOL_ADMIN", "ADMIN", "STAFF"].includes(sessionUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -34,8 +33,8 @@ export async function POST(req: NextRequest) {
   const { title, description, classId, subjectId, dueDate } = body;
 
   let teacherId = body.teacherId;
-  if (!teacherId && session.user.role === "TEACHER") {
-    const teacher = await db.teacher.findUnique({ where: { userId: session.user.id } });
+  if (!teacherId && sessionUser.role === "TEACHER") {
+    const teacher = await db.teacher.findUnique({ where: { userId: sessionUser.id } });
     teacherId = teacher?.id;
   }
 

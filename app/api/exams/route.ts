@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = req.nextUrl;
   const academicYear = searchParams.get("academicYear") ?? undefined;
@@ -13,7 +12,7 @@ export async function GET(req: NextRequest) {
   const exams = await db.exam.findMany({
     where: {
       AND: [
-        { school: { users: { some: { id: session.user.id } } } },
+        { school: { users: { some: { id: sessionUser.id } } } },
         ...(academicYear ? [{ academicYear }] : []),
       ],
     },
@@ -34,13 +33,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !["ADMIN", "SCHOOL_ADMIN"].includes(session.user.role)) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser || !["ADMIN", "SCHOOL_ADMIN"].includes(sessionUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const school = await db.school.findFirst({
-    where: { users: { some: { id: session.user.id } } },
+    where: { users: { some: { id: sessionUser.id } } },
   });
   if (!school) return NextResponse.json({ error: "School not found" }, { status: 400 });
 

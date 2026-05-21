@@ -3,7 +3,7 @@ import { requireSuperAdmin } from "@/lib/superadmin-guard";
 import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-  const { error } = await requireSuperAdmin();
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   const { searchParams } = req.nextUrl;
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { error } = await requireSuperAdmin();
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   const { searchParams } = req.nextUrl;

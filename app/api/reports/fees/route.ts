@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 
 function monthKey(d: Date) {
@@ -12,8 +11,8 @@ function monthLabel(key: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = req.nextUrl;
   const classId = searchParams.get("classId") ?? undefined;
@@ -22,7 +21,7 @@ export async function GET(req: NextRequest) {
   const paymentMode = searchParams.get("paymentMode") ?? undefined;
   const format = searchParams.get("format");
 
-  const invConditions: object[] = [{ schoolId: session.user.schoolId! }];
+  const invConditions: object[] = [{ schoolId: sessionUser.schoolId! }];
   if (classId) invConditions.push({ classId });
   if (fromDate) invConditions.push({ createdAt: { gte: new Date(fromDate) } });
   if (toDate) invConditions.push({ createdAt: { lte: new Date(toDate) } });

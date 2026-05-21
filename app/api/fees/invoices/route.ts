@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = req.nextUrl;
-  const studentId = searchParams.get("studentId") ?? undefined;
+  let studentId = searchParams.get("studentId") ?? undefined;
   const classId = searchParams.get("classId") ?? undefined;
   const status = searchParams.get("status") ?? undefined;
   const academicYear = searchParams.get("academicYear") ?? undefined;
   const period = searchParams.get("period") ?? undefined;
 
+  // Students can only see their own invoices
+  if (sessionUser.role === "STUDENT") {
+    const student = await db.student.findUnique({ where: { userId: sessionUser.id }, select: { id: true } });
+    studentId = student?.id ?? "none";
+  }
+
   const invoices = await db.invoice.findMany({
     where: {
-      schoolId: session.user.schoolId!,
+      schoolId: sessionUser.schoolId!,
       ...(studentId && { studentId }),
       ...(classId && { classId }),
       ...(status && { status: status as never }),
@@ -35,8 +40,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !["SCHOOL_ADMIN", "ADMIN"].includes(session.user.role)) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser || !["SCHOOL_ADMIN", "ADMIN"].includes(sessionUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -45,7 +50,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "period, academicYear, dueDate required" }, { status: 400 });
   }
 
-  const schoolId = session.user.schoolId!;
+  const schoolId = sessionUser.schoolId!;
 
   const classWhere = classIds?.length > 0
     ? { id: { in: classIds } }

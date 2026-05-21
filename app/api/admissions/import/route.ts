@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -23,8 +22,8 @@ const rowSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !["SCHOOL_ADMIN", "ADMIN"].includes(session.user.role)) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser || !["SCHOOL_ADMIN", "ADMIN"].includes(sessionUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -80,7 +79,7 @@ export async function POST(req: NextRequest) {
           password: defaultHash,
           role: "STUDENT",
           phone,
-          schoolId: session.user.schoolId ?? undefined,
+          schoolId: sessionUser.schoolId ?? undefined,
           student: {
             create: {
               studentId,
@@ -100,14 +99,14 @@ export async function POST(req: NextRequest) {
 
       if (fatherName) {
         const guardian = await db.guardian.create({
-          data: { name: fatherName, relation: "FATHER", phone: fatherPhone || "N/A", schoolId: session.user.schoolId! },
+          data: { name: fatherName, relation: "FATHER", phone: fatherPhone || "N/A", schoolId: sessionUser.schoolId! },
         });
         await db.studentGuardian.create({ data: { studentId: student.id, guardianId: guardian.id, isPrimary: true } });
       }
 
       if (motherName) {
         const guardian = await db.guardian.create({
-          data: { name: motherName, relation: "MOTHER", phone: motherPhone || "N/A", schoolId: session.user.schoolId! },
+          data: { name: motherName, relation: "MOTHER", phone: motherPhone || "N/A", schoolId: sessionUser.schoolId! },
         });
         await db.studentGuardian.create({
           data: { studentId: student.id, guardianId: guardian.id, isPrimary: !fatherName },

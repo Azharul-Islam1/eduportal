@@ -11,7 +11,7 @@ const querySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const { error } = await requireSuperAdmin();
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   const params = Object.fromEntries(req.nextUrl.searchParams);

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = req.nextUrl;
   const classId = searchParams.get("classId");
@@ -17,11 +16,16 @@ export async function GET(req: NextRequest) {
 
   const conditions: object[] = [];
 
-  if (session.user.schoolId) {
-    conditions.push({ student: { user: { schoolId: session.user.schoolId } } });
+  if (sessionUser.role === "STUDENT") {
+    // Students can only see their own attendance — auto-scope by userId
+    conditions.push({ student: { userId: sessionUser.id } });
+  } else {
+    if (sessionUser.schoolId) {
+      conditions.push({ student: { user: { schoolId: sessionUser.schoolId } } });
+    }
+    if (studentId) conditions.push({ studentId });
+    if (classId) conditions.push({ student: { classId } });
   }
-  if (studentId) conditions.push({ studentId });
-  if (classId) conditions.push({ student: { classId } });
   if (date) conditions.push({ date: new Date(date) });
   if (fromDate || toDate) {
     conditions.push({
@@ -51,8 +55,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !["TEACHER", "ADMIN", "SCHOOL_ADMIN"].includes(session.user.role)) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser || !["TEACHER", "ADMIN", "SCHOOL_ADMIN"].includes(sessionUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -64,8 +68,8 @@ export async function POST(req: NextRequest) {
   if (!date) return NextResponse.json({ error: "Date is required" }, { status: 400 });
 
   let teacherId: string | null = null;
-  if (session.user.role === "TEACHER") {
-    const teacher = await db.teacher.findUnique({ where: { userId: session.user.id } });
+  if (sessionUser.role === "TEACHER") {
+    const teacher = await db.teacher.findUnique({ where: { userId: sessionUser.id } });
     if (teacher) teacherId = teacher.id;
   }
 
@@ -79,13 +83,13 @@ export async function POST(req: NextRequest) {
         date: parsedDate,
         status: r.status as never,
         period,
-        markedBy: session.user.id,
+        markedBy: sessionUser.id,
         remarks: r.remarks ?? null,
       },
       update: {
         status: r.status as never,
         remarks: r.remarks ?? null,
-        markedBy: session.user.id,
+        markedBy: sessionUser.id,
       },
     })
   );

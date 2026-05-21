@@ -31,6 +31,8 @@
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
+    "jose": "^6.2.3",
     "lucide-react": "^0.468.0",
     "mysql2": "^3.22.3",
     "next": "^15.5.18",

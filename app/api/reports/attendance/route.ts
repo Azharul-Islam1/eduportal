@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = req.nextUrl;
   const classId = searchParams.get("classId") ?? undefined;
@@ -14,7 +13,7 @@ export async function GET(req: NextRequest) {
   const format = searchParams.get("format");
 
   const conditions: object[] = [
-    { student: { user: { schoolId: session.user.schoolId! } } },
+    { student: { user: { schoolId: sessionUser.schoolId! } } },
     { period: 0 },
   ];
   if (classId) conditions.push({ student: { classId } });

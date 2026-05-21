@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -12,9 +11,37 @@ const schema = z.object({
   status: z.string().default("ACTIVE"),
 });
 
+export async function GET(req: NextRequest) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = req.nextUrl;
+  let studentId = searchParams.get("studentId") ?? undefined;
+  const classId = searchParams.get("classId") ?? undefined;
+  const academicYear = searchParams.get("academicYear") ?? undefined;
+
+  // Students can only see their own enrollment
+  if (sessionUser.role === "STUDENT") {
+    const student = await db.student.findUnique({ where: { userId: sessionUser.id }, select: { id: true } });
+    studentId = student?.id ?? "none";
+  }
+
+  const enrollments = await db.enrollment.findMany({
+    where: {
+      ...(studentId && { studentId }),
+      ...(classId && { classId }),
+      ...(academicYear && { academicYear }),
+    },
+    include: { class: true, student: { include: { user: { select: { name: true } } } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return NextResponse.json(enrollments);
+}
+
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
   const parsed = schema.safeParse(body);

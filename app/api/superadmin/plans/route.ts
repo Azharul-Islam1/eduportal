@@ -13,8 +13,8 @@ const createSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export async function GET() {
-  const { error } = await requireSuperAdmin();
+export async function GET(req: NextRequest) {
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   const plans = await db.plan.findMany({
@@ -25,7 +25,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireSuperAdmin();
+  const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
   const data = createSchema.parse(await req.json());

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -41,8 +40,8 @@ const createSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
@@ -53,7 +52,7 @@ export async function GET(req: NextRequest) {
 
   // Build AND conditions to avoid merging conflicting 'user' objects
   const conditions: object[] = [];
-  if (session.user.schoolId) conditions.push({ user: { schoolId: session.user.schoolId } });
+  if (sessionUser.schoolId) conditions.push({ user: { schoolId: sessionUser.schoolId } });
   if (classId) conditions.push({ classId });
   if (status === "active") conditions.push({ user: { isActive: true } });
   if (status === "inactive") conditions.push({ user: { isActive: false } });
@@ -90,8 +89,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !isSchoolStaff(session.user.role)) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser || !isSchoolStaff(sessionUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -126,7 +125,7 @@ export async function POST(req: NextRequest) {
       role: "STUDENT",
       phone,
       address: fullAddress,
-      schoolId: session.user.schoolId ?? undefined,
+      schoolId: sessionUser.schoolId ?? undefined,
       student: {
         create: {
           studentId,
@@ -157,7 +156,7 @@ export async function POST(req: NextRequest) {
         phone: fatherPhone || "N/A",
         email: fatherEmail,
         occupation: fatherOccupation,
-        schoolId: session.user.schoolId!,
+        schoolId: sessionUser.schoolId!,
       },
     });
     await db.studentGuardian.create({
@@ -177,7 +176,7 @@ export async function POST(req: NextRequest) {
         phone: motherPhone || "N/A",
         email: motherEmail,
         occupation: motherOccupation,
-        schoolId: session.user.schoolId!,
+        schoolId: sessionUser.schoolId!,
       },
     });
     await db.studentGuardian.create({
