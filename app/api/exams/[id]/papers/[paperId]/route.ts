@@ -25,7 +25,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string; paperId: string }> }
 ) {
   const sessionUser = await getSessionUser(req);

@@ -5,7 +5,8 @@
       "PowerShell(Get-Process | Where-Object { $_.Name -match \"node|next\" } | Select-Object Id, Name, Path)",
       "PowerShell(Select-String -Path \"f:\\\\eduPortal\\\\node_modules\\\\.prisma\\\\client\\\\index.d.ts\" -Pattern \"plan\\\\b\" -SimpleMatch | Select-Object -First 5 | ForEach-Object { $_.Line })",
       "PowerShell(Select-String -Path \"f:\\\\eduPortal\\\\node_modules\\\\@prisma\\\\client\\\\index.d.ts\" -Pattern \"Plan\" -SimpleMatch | Select-Object -First 5 | ForEach-Object { $_.Line })",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(xargs grep -l \"getSessionUser\\(req\\)\")"
     ]
   }
 }

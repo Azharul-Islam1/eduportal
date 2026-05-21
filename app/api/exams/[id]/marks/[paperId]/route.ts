@@ -3,7 +3,7 @@ import { getSessionUser } from "@/lib/mobile-auth";
 import { db } from "@/lib/db";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string; paperId: string }> }
 ) {
   const sessionUser = await getSessionUser(req);
