@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   const { error } = await requireSuperAdmin(req);
   if (error) return error;
 
